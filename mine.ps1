@@ -15,7 +15,7 @@ param (
 #region: validate and clamp params
 $MIN_SIZE = 5;
 # max size above 20 becomes unbearably slow, input lags behind due to slow redrawing
-$MAX_SIZE = 20;
+$MAX_SIZE = 30;
 $MIN_MINE_DENSITY = 5;
 $MAX_MINE_DENSITY = 75;
 
@@ -46,32 +46,33 @@ $UNDERSCORE = "${ESC}4m";
 #endregion
 
 #region: outputting/printing to console
-function WriteChars($character) {
-  Write-Host -NoNewLine $character;
+Function writeChars($character) {
+  Write-Host -NoNewLine ${character};
 }
 
-function drawBoard {
+Function drawBoard {
+  $boardDataToWrite = "";
   for ($row = 0; $row -lt $boardSize; $row++) {
     for ($col = 0; $col -lt $boardSize; $col++) {
-      drawCell $row $col;
+      $boardDataToWrite += getCellCharToWrite $row $col;
     }
-    WriteChars "`n";
+    $boardDataToWrite += "`n";
   }
+  writeChars $boardDataToWrite;
 }
 
-function updateBoard {
+Function updateBoard {
   # move the terminal cursor up and left
-  WriteChars "${ESC}${boardSize}A";
-  WriteChars "${ESC}$($boardSize * 3)D";
+  writeChars "${ESC}${boardSize}A";
+  writeChars "${ESC}$($boardSize * 3)D";
   # redraw the updated board
   drawBoard;
 }
 
-function drawCell ($row, $col) {
+Function getCellCharToWrite ($row, $col) {
   $cellState = getCellState $row $col;
   $mineData = getMineState $row $col;
   
-  $charToWrite;
   # cell not yet visited
   if ($cellState -eq $null) {
     $charToWrite = ".";
@@ -95,19 +96,22 @@ function drawCell ($row, $col) {
   elseif ($cellState -eq 2) {
     $charToWrite = "%";
   }
+
   # wrap the cursor around it
   if ($script:cursor_row -eq $row -and $script:cursor_col -eq $col) {
-    WriteChars("[${charToWrite}]");
+    $charToWrite = "[$charToWrite]";
   }
   else {
-    WriteChars(" ${charToWrite} ");
+    $charToWrite = " $charToWrite ";
   }
+
+  return $charToWrite;
 }
 #endregion
 
 #region: game processing
 Function startGame {
-  WriteChars "`n";
+  writeChars "`n";
   $script:cells = New-Object "object[,]" $boardSize, $boardSize;
   $script:mines = New-Object "object[,]" $boardSize, $boardSize;
 
@@ -133,12 +137,12 @@ Function gameOver {
     }
   }
   updateBoard;
-  WriteChars "`nGame over! :c`n";
+  writeChars "`nGame over! :c`n";
   askForRestart;
 }
 
 Function quit {
-  WriteChars $SHOW_CURSOR;
+  writeChars $SHOW_CURSOR;
   $script:running = $false;
 }
 
@@ -146,18 +150,18 @@ Function checkIfVictory {
   $victory = $true;
   for ($row = 0; $row -lt $boardSize; $row++) {
     for ($col = 0; $col -lt $boardSize; $col++) {
-      $mineData = getMineState $row $col;
+      $cellState = getCellState $row $col;
       # if not mine and flagged -> break (not mine & flagged)
       # if mine and unflagged -> break (mine & not flagged)
       # if checked all and didn't break -> victory
       if ($(getMineState $row $col) -ne 9) {
-        if ($(getCellState $row $col) -eq 2) {
+        if ($cellState -eq 2) {
           $victory = $false; 
           break
         }
         continue;
       }
-      if ($(getCellState $row $col) -ne 2) {
+      if ($cellState -ne 2) {
         $victory = $false;
         break;
       }
@@ -167,7 +171,7 @@ Function checkIfVictory {
   if ($victory) {
     # one last update after revealing all mines
     updateBoard;
-    WriteChars "`nYou've won!`n";
+    writeChars "`nYou've won!`n";
     askForRestart;
   }
 }
@@ -271,7 +275,7 @@ Function countNeighbors ($row, $col) {
 #endregion
 
 #region: input
-function processPressedKey {
+Function processPressedKey {
   $key = $Host.UI.RawUI.ReadKey("NoEcho, IncludeKeyDown");
   $key = $key.VirtualKeyCode;
 
@@ -309,7 +313,7 @@ function processPressedKey {
   }
 }
 
-function askForRestart {
+Function askForRestart {
   $restart = Read-Host "`nDo you want to start a new game? (y/n)";
   if ($restart -eq "y") {
     startGame;
@@ -318,27 +322,27 @@ function askForRestart {
     quit;
   }
   else {
-    WriteChars "Unknown answer, try again`n";
+    writeChars "Unknown answer, try again`n";
     askForRestart;
   }
 }
 
-function moveUp {
+Function moveUp {
   if ($script:cursor_row -gt 0) {
     $script:cursor_row--;
   }
 }
-function moveDown {
+Function moveDown {
   if ($script:cursor_row -lt $($boardSize - 1)) {
     $script:cursor_row++;
   }
 }
-function moveLeft {
+Function moveLeft {
   if ($script:cursor_col -gt 0) {
     $script:cursor_col--;
   }
 }
-function moveRight {
+Function moveRight {
   if ($script:cursor_col -lt $($boardSize - 1)) {
     $script:cursor_col++;
   }
@@ -346,7 +350,7 @@ function moveRight {
 #endregion
 
 #region: initial setup and gameloop
-WriteChars $HIDE_CURSOR;
+writeChars $HIDE_CURSOR;
 startGame;
 $script:running = $true;
 
