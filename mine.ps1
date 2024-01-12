@@ -43,6 +43,9 @@ $RESET = "${ESC}0m";
 $BOLD = "${ESC}1m";
 $UNBOLD = "${ESC}22m";
 $UNDERSCORE = "${ESC}4m";
+# colors
+$RESETCOLOR = "${ESC}27m";
+$RED = "${ESC}91m";
 #endregion
 
 #region: outputting/printing to console
@@ -63,8 +66,7 @@ Function drawBoard {
 
 Function updateBoard {
   # move the terminal cursor up and left
-  writeChars "${ESC}${boardSize}A";
-  writeChars "${ESC}$($boardSize * 3)D";
+  writeChars "${ESC}${boardSize}A${ESC}$($boardSize * 3)D";
   # redraw the updated board
   drawBoard;
 }
@@ -85,7 +87,7 @@ Function getCellCharToWrite ($row, $col) {
     }
     # draw the mine
     elseif ($mineData -eq 9) {
-      $charToWrite = "@";
+      $charToWrite = "${RED}@${RESET}";
     }
     # write the number of neighboring mines
     else {
